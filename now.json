@@ -1,0 +1,11 @@
+{
+  "name": "tag-dog", 
+  "alias": ["tag-dog-ipfs.now.sh"],
+  "version": 2,
+  "env": {
+    "GH_TOKEN": "@gh_token",
+    "WH_SECRET": "@wh_secret"
+  },
+  "builds": [{ "src": "*.go", "use": "@now/go" }]
+}
+
