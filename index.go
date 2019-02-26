@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/apsdehal/go-logger"
@@ -18,8 +19,9 @@ import (
 var hook *github.Webhook
 var cli *gapi.Client
 var log *logger.Logger
+var start sync.Once
 
-func init() {
+func firstRun() {
 	var err error
 	hook, err = github.New(github.Options.Secret(os.Getenv("WH_SECRET")))
 	if err != nil {
@@ -39,6 +41,8 @@ func init() {
 const tagPrefix = "refs/tags/"
 
 func Handler(w http.ResponseWriter, r *http.Request) {
+	start.Do(firstRun)
+
 	payload, err := hook.Parse(r, github.PushEvent)
 	if err != nil {
 		if err == github.ErrEventNotFound {
