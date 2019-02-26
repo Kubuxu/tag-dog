@@ -27,7 +27,7 @@ func firstRun() {
 	if err != nil {
 		panic(err)
 	}
-	log, _ := logger.New("tag-dog")
+	log, _ = logger.New("tag-dog")
 	log.SetFormat("%{lvl}: %{message} %{file}:%{line}")
 
 	ctx := context.Background()
