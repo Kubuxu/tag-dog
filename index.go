@@ -27,7 +27,7 @@ func firstRun() {
 	if err != nil {
 		panic(err)
 	}
-	log, _ = logger.New("tag-dog")
+	log, _ = logger.New("tag-dog", 0)
 	log.SetFormat("%{lvl}: %{message} %{file}:%{line}")
 
 	ctx := context.Background()
@@ -58,6 +58,7 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 		push := payload.(github.PushPayload)
 		if !strings.HasPrefix(push.Ref, tagPrefix) || !push.Created {
 			log.Debugf("not tag push: %s", push.Ref)
+			return
 		}
 		tag := strings.TrimPrefix(push.Ref, tagPrefix)
 
@@ -103,7 +104,7 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 		}
 		log.Infof("created issue")
 	default:
-		log.Infof("unknown type: %+v\n", payload)
+		log.Debugf("unknown type: %+v", payload)
 	}
 }
 
