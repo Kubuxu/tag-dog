@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/apsdehal/go-logger"
+	logger "github.com/apsdehal/go-logger"
 	gapi "github.com/google/go-github/v24/github"
 	"github.com/pkg/errors"
 	"golang.org/x/oauth2"
@@ -27,7 +27,7 @@ func firstRun() {
 	if err != nil {
 		panic(err)
 	}
-	log, _ = logger.New("tag-dog", 0)
+	log, _ = logger.New("tag-dog", 0) //nolint: gosec
 	log.SetFormat("%{lvl}: %{message} %{file}:%{line}")
 
 	ctx := context.Background()
@@ -40,6 +40,9 @@ func firstRun() {
 
 const tagPrefix = "refs/tags/"
 
+var _ = Handler // used by now.sh, trick linters that it is used
+
+// Handler is run by now.sh
 func Handler(w http.ResponseWriter, r *http.Request) {
 	start.Do(firstRun)
 
@@ -53,9 +56,8 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	switch payload.(type) {
+	switch push := payload.(type) {
 	case github.PushPayload:
-		push := payload.(github.PushPayload)
 		if !strings.HasPrefix(push.Ref, tagPrefix) || !push.Created {
 			log.Debugf("not tag push: %s", push.Ref)
 			return
