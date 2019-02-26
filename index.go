@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/apsdehal/go-logger"
 	gapi "github.com/google/go-github/v24/github"
@@ -45,6 +46,8 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 
 	switch payload.(type) {
 	case github.PushPayload:
@@ -53,16 +56,54 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 			log.Debugf("not tag push: %s", push.Ref)
 		}
 		tag := strings.TrimPrefix(push.Ref, tagPrefix)
-		err := createIssue(tag, push)
+
+		owner := push.Repository.Owner.Login
+		name := push.Repository.Name
+		var allrefs []*gapi.Reference
+		refsopt := &gapi.ReferenceListOptions{
+			Type:        "tags",
+			ListOptions: gapi.ListOptions{PerPage: 50},
+		}
+		for {
+			refs, resp, err := cli.Git.ListRefs(ctx, owner, name, refsopt)
+			if err != nil {
+				log.Errorf("fetching refs: %s", err)
+				return
+			}
+			allrefs = append(allrefs, refs...)
+			if resp.NextPage == 0 {
+				break
+			}
+			refsopt.Page = resp.NextPage
+		}
+		found := false
+		for _, ref := range allrefs {
+			if ref.GetRef() == (tagPrefix + "gx/" + tag) {
+				if o := ref.GetObject(); o != nil {
+					if o.GetSHA() == push.After {
+						found = true
+						break
+					}
+				}
+			}
+		}
+		if !found {
+			log.Debug("didn't find matching tag")
+			return
+		}
+
+		err := createIssue(ctx, tag, push)
 		if err != nil {
 			log.Errorf("creating issue: %s", err)
+			return
 		}
+		log.Infof("created issue")
 	default:
 		log.Infof("unknown type: %+v\n", payload)
 	}
 }
 
-func createIssue(tag string, push github.PushPayload) error {
+func createIssue(ctx context.Context, tag string, push github.PushPayload) error {
 	title := fmt.Sprintf("Possibly erroneous tag pushed: %s", tag)
 	body := fmt.Sprintf(`Woof Woof :dog:
 
@@ -81,7 +122,7 @@ Yours truly, with :poodle:, Tag Dog.
 		Body:      &body,
 		Assignees: &[]string{push.Sender.Login},
 	}
-	_, _, err := cli.Issues.Create(context.Background(), push.Repository.Owner.Login,
+	_, _, err := cli.Issues.Create(ctx, push.Repository.Owner.Login,
 		push.Repository.Name, ir)
 	if err != nil {
 		return errors.Wrap(err, "creating issue")
