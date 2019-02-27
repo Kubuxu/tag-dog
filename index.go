@@ -58,14 +58,15 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 
 	switch push := payload.(type) {
 	case github.PushPayload:
+		owner := push.Repository.Owner.Login
+		name := push.Repository.Name
+
 		if !strings.HasPrefix(push.Ref, tagPrefix) || !push.Created {
-			log.Debugf("not tag push: %s", push.Ref)
+			log.Debugf("not tag push: %s/%s@%s", owner, name, push.Ref)
 			return
 		}
 		tag := strings.TrimPrefix(push.Ref, tagPrefix)
 
-		owner := push.Repository.Owner.Login
-		name := push.Repository.Name
 		var allrefs []*gapi.Reference
 		refsopt := &gapi.ReferenceListOptions{
 			Type:        "tags",
